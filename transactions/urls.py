@@ -12,7 +12,7 @@ urlpatterns = [
         name="list_transactions",
     ),
     path("new/", views.new_transactions, name="new_transactions"),
-    path(
-        "<int:transaction_id>/total/", views.total_transactions, name="total_transactions"
-    ),
+    # path(
+    #     "<int:transaction_id>/total/", views.total_transactions, name="total_transactions"
+    # ),
 ]
