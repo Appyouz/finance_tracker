@@ -7,11 +7,25 @@
     <link href="css/style.css" rel="stylesheet">
   </head>
   <body>
-      <h1>{{ transaction.category}}</h1>
-    <ul>
-      {% for transaction in transaction.choice_set.all %}
-      <li>{{ transaction.category }}</li>
-      {% endfor %}
-    </ul>
+
+    <table>
+      <tr>
+        <th>Category</th>
+        <th>Amount</th>
+      </tr>
+
+    {% for transaction in transactions %}
+      <tr>
+        <td>{{ transaction.category}}</td>
+        <td>{{ transaction.amount}}</td>
+      </tr>
+    {% endfor %}
+
+      <tr>
+        <td><b>Total</b></td>
+        <td><b>{{ total }}</b></td>
+      </tr>
+    </table>  
+
   </body>
 </html>

@@ -1,6 +1,9 @@
-from django.shortcuts import render, get_object_or_404
+from django.db.models import Sum
+from django.shortcuts import redirect, render, get_object_or_404
 from django.http import Http404, HttpResponse
-from django.template import loader
+from django.template import context, loader
+
+from transactions.forms import TransactionForm
 from .models import Transaction
 
 
@@ -13,16 +16,34 @@ def index(request):
     return render(request, "transactions/index.html", context)
 
 
-def list_transactions(request, transaction_id):
-        transaction = get_object_or_404(Transaction, pk=transaction_id)
-        return render(
-        request, "transactions/list-transaction.html", {"transaction": transaction}
-    )
+# def detail_list_transactions(request, transaction_id):
+#         transaction = get_object_or_404(Transaction, pk=transaction_id)
+#         return render(
+#         request, "transactions/list-transaction.html", {"transaction": transaction}
+#     )
 
 
-def new_transactions(request, transaction_id):
-    return HttpResponse("Addding new transactions")
+def list_transactions(request,):
+    transactions = Transaction.objects.all()
+    total = transactions.aggregate(total=Sum('amount'))['total']
+    context  = {
+        'transactions': transactions,
+        'total': total or 0           # Handles empty database case
+    }
+    return render(request, "transactions/list-transaction.html", context)
+
+def new_transactions(request):
+    if request.method == 'POST':
+        form = TransactionForm(request.POST)
+        if form.is_valid():
+            form.save()  # <-- ADD THIS LINE
+            return redirect('transactions:list_transactions')
+    else: 
+        # Show empty form for GET requests
+        form = TransactionForm()
+
+    return render(request, 'transactions/new-transaction.html', {'form': form})
 
 
-def total_transactions(request, transaction_id):
+def total_transactions(request ):
     return HttpResponse("Total results")

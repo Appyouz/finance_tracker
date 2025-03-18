@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>New Transaction</title>
+  <link href="css/style.css" rel="stylesheet">
+</head>
+
+<body>
+   <h1>New Transaction</h1>
+  <form action="" method="post">
+    {% csrf_token %}
+    <!-- renders form fiels as paragraphs -->
+    {{ form.as_p }}
+    <button type="submit">save</button>
+  </form>
+</body>
+
+</html>
