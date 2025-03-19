@@ -1,10 +1,9 @@
 from django.db.models import Sum
 from django.http import JsonResponse, HttpResponseRedirect
-from django.shortcuts import redirect, render 
-
+from django.shortcuts import redirect, render ,get_object_or_404
 from transactions.forms import TransactionForm
 from .models import Transaction
-
+from django.views.decorators.http import require_http_methods
 
 # listing transactios,addig new ones,showing totals
 def index(request):
@@ -36,17 +35,21 @@ def new_transactions(request):
         form = TransactionForm(request.POST)
         if form.is_valid():
             transaction = form.save()  
+            total = Transaction.objects.aggregate(total=Sum('amount'))['total'] or 0
             if request.headers.get('X-Requested-with') == 'XMLHttpRequest':
                 return JsonResponse({
+                    'id' : transaction.id,
                     'category' : transaction.category,
                     'amount'   : transaction.amount,
-                    'date'     : transaction.date.strftime('%Y-%m-d') # format date
+                    'date'     : transaction.date.strftime('%Y-%m-d'), # format date
+                    'total': total
                 }, status=200)
             else:
                 # Non-AJAX (fallback for browsers without JS)
                 # Redirect to the same page
                 return HttpResponseRedirect(request.path)
 
+        # Handling Form errors like missing amount etc
         else: 
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
               # Show empty form for GET requests
@@ -58,9 +61,24 @@ def new_transactions(request):
     # For GET requests, show the form and list
     transactions = Transaction.objects.all()
     form = TransactionForm()
+
+    total = transactions.aggregate(total=Sum('amount'))['total']
     return render(request, 'transactions/new-transaction.html', {
         'form': form,
         'transactions' : transactions,
+        'total': total or 0,
     })
 
 
+@require_http_methods(["DELETE"])
+def delete_transaction(request, transaction_id):
+    transaction = get_object_or_404(Transaction, id=transaction_id)
+    transaction.delete()
+    
+    # Recalculate the total after deletion
+    total = Transaction.objects.aggregate(total=Sum('amount'))['total'] or 0
+    
+    return JsonResponse({
+        'success': True,
+        'total': total
+    })

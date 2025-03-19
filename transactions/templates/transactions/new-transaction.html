@@ -10,7 +10,7 @@
 
 <body>
    <h1>New Transaction</h1>
-  <form action="" method="post">
+  <form  id= "transactionForm" action="" method="post">
     {% csrf_token %}
     <!-- renders form fiels as paragraphs -->
     {{ form.as_p }}
@@ -29,16 +29,24 @@
       <tr>
         <td>{{ transaction.category}}</td>
         <td>{{ transaction.amount}}</td>
+
+        <td>
+            <button 
+                class="delete-btn" 
+                data-transaction-id="{{ transaction.id }}"
+            >Delete</button>
+        </td>
       </tr>
     {% endfor %}
 
       <tr>
         <td><b>Total</b></td>
-        <td><b>{{ total }}</b></td>
+        <td ><b  id="totalAmount">{{ total }}</b></td>
       </tr>
     </table>  
 
 <script>
+    document.getElementById('')
 document.getElementById('transactionForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const formData = new FormData(this);
@@ -60,16 +68,64 @@ document.getElementById('transactionForm').addEventListener('submit', function(e
         } else {
             // Add new row to the table
             const table = document.getElementById('transactionTable');
-            const newRow = table.insertRow(1);
+            const newRow = table.insertRow(table.rows.length - 1);
             newRow.innerHTML = `
                 <td>${data.category}</td>
                 <td>${data.amount}</td>
-                <td>${data.date}</td>
+              <td>
+                <button 
+                    class="delete-btn" 
+                    data-transaction-id="${data.id}"  // Add transaction ID
+                >Delete</button>
+            </td>
             `;
+
+            // const totalCell = document.querySelector('#transactionTable tr:last-child td:last-child');
+
+        const totalCell = document.querySelector('#totalAmount');
+            totalCell.textContent = data.total;
             this.reset();
         }
     })
     .catch(error => console.error('Error:', error));
+});
+
+
+function handleDelete(e) {
+    const button = e.target;
+    const transactionId = button.getAttribute('data-transaction-id');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // Send DELETE request to the server
+    fetch(`/transactions/${transactionId}/delete/`, {
+        method: 'DELETE',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken  // Required for CSRF protection
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Delete failed');
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Remove the deleted row from the table
+            button.closest('tr').remove();
+            // Update the total
+            document.getElementById('totalAmount').textContent = data.total;
+        }
+    })
+    .catch(error => {
+        alert('Failed to delete transaction: ' + error.message);
+    });
+}
+
+// Attach event listener to the table (for dynamically added buttons)
+document.getElementById('transactionTable').addEventListener('click', function(e) {
+    if (e.target.classList.contains('delete-btn')) {
+        handleDelete(e);
+    }
 });
 </script>
 </body>
