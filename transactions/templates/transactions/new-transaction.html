@@ -1,51 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>New Transaction</title>
-  <link href="css/style.css" rel="stylesheet">
-</head>
-
-<body>
-   <h1>New Transaction</h1>
-  <form  id= "transactionForm" action="" method="post">
-    {% csrf_token %}
-    <!-- renders form fiels as paragraphs -->
-    {{ form.as_p }}
-    <button type="submit">save</button>
-  </form>
-<hr>
-
-    <h2>Recent Transactions</h2>
-    <table id="transactionTable">
-      <tr>
-        <th>Category</th>
-        <th>Amount</th>
-      </tr>
-
-    {% for transaction in transactions %}
-      <tr>
-        <td>{{ transaction.category}}</td>
-        <td>{{ transaction.amount}}</td>
-
-        <td>
-            <button 
-                class="delete-btn" 
-                data-transaction-id="{{ transaction.id }}"
-            >Delete</button>
-        </td>
-      </tr>
-    {% endfor %}
-
-      <tr>
-        <td><b>Total</b></td>
-        <td ><b  id="totalAmount">{{ total }}</b></td>
-      </tr>
-    </table>  
-
-<script>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>New Transaction</title>
+        <link href="css/style.css" rel="stylesheet">
+    </head>
+    <body>
+        <h1>New Transaction</h1>
+        <form id= "transactionForm" action="" method="post">
+            {% csrf_token %}
+            <!-- renders form fiels as paragraphs -->
+            {{ form.as_p }}
+            <button type="submit">save</button>
+        </form>
+        <hr>
+        <h2>Recent Transactions</h2>
+        <table id="transactionTable">
+            <tr>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+            {% for transaction in transactions %}
+                <tr data-transaction-id="{{ transaction.id }}">
+                    <td class="editable-category">{{ transaction.category }}</td>
+                    <td class="editable-amount">{{ transaction.amount }}</td>
+                    <td class="editable-date">{{ transaction.date|date:"Y-m-d" }}</td>
+                    <!-- Date cell -->
+                    <td>
+                        <button class="edit-btn" data-transaction-id="{{ transaction.id }}">Edit</button>
+                        <button class="delete-btn" data-transaction-id="{{ transaction.id }}">Delete</button>
+                    </td>
+                </tr>
+            {% endfor %}
+            <tr>
+                <td>
+                    <b>Total</b>
+                </td>
+                <td colspan="2">
+                    <b id="totalAmount">{{ total }}</b>
+                </td>
+            </tr>
+        </table>
+        <script>
     document.getElementById('')
 document.getElementById('transactionForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -70,15 +69,14 @@ document.getElementById('transactionForm').addEventListener('submit', function(e
             const table = document.getElementById('transactionTable');
             const newRow = table.insertRow(table.rows.length - 1);
             newRow.innerHTML = `
-                <td>${data.category}</td>
-                <td>${data.amount}</td>
-              <td>
-                <button 
-                    class="delete-btn" 
-                    data-transaction-id="${data.id}"  // Add transaction ID
-                >Delete</button>
+            <td class="editable-category">${data.category}</td>
+            <td class="editable-amount">${data.amount}</td>
+            <td class="editable-date">${data.date}</td>
+            <td>
+                <button class="edit-btn" data-transaction-id="${data.id}">Edit</button>
+                <button class="delete-btn" data-transaction-id="${data.id}">Delete</button>
             </td>
-            `;
+        `;
 
             // const totalCell = document.querySelector('#transactionTable tr:last-child td:last-child');
 
@@ -127,7 +125,76 @@ document.getElementById('transactionTable').addEventListener('click', function(e
         handleDelete(e);
     }
 });
-</script>
-</body>
 
+
+
+function handleEdit(e) {
+    const button = e.target;
+    const transactionId = button.getAttribute('data-transaction-id');
+    const row = button.closest('tr');
+    const categoryCell = row.querySelector('.editable-category');
+    const amountCell = row.querySelector('.editable-amount');
+    const dateCell = row.querySelector('.editable-date'); // New
+    
+      // Check if already in edit mode
+    if (button.textContent === 'Save') {
+        const categoryInput = categoryCell.querySelector('input');
+        const amountInput = amountCell.querySelector('input');
+        const dateInput = dateCell.querySelector('input'); // New
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        // Send AJAX request to save changes
+        fetch(`/transactions/${transactionId}/edit/`, {
+            method: 'PUT',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                category: categoryInput.value,
+                amount: amountInput.value,
+                date: dateInput.value || new Date().toISOString().split('T')[0], // Default to today
+            }),
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Edit failed');
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Update the cells with new values
+                categoryCell.textContent = data.category;
+                amountCell.textContent = data.amount;
+                dateCell.textContent = data.date; // New
+                // Update the total
+                document.getElementById('totalAmount').textContent = data.total;
+                button.textContent = 'Edit'; // Revert button text
+            }
+        })
+        .catch(error => alert('Error: ' + error.message));
+    } else {
+        // Enter edit mode: Replace text with input fields
+        const currentCategory = categoryCell.textContent;
+        const currentAmount = amountCell.textContent;
+        const currentDate = dateCell.textContent;
+
+        categoryCell.innerHTML = `<input type="text" value="${currentCategory}">`;
+        amountCell.innerHTML = `<input type="number" value="${currentAmount}">`;
+        dateCell.innerHTML = `<input type="date" value="${dateCell.textContent}">`; // Date picker
+        button.textContent = 'Save'; // Change button to "Save"
+    }
+}
+
+// Attach event listener for edit buttons
+document.getElementById('transactionTable').addEventListener('click', function(e) {
+    if (e.target.classList.contains('edit-btn')) {
+        handleEdit(e);
+    }
+});
+
+
+
+        </script>
+    </body>
 </html>
