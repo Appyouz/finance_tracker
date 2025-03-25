@@ -1,149 +1,186 @@
 document.addEventListener('DOMContentLoaded', function() {
-document.getElementById('transactionForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const formData = new FormData(this);
+    let myChart = null; // Store chart instance
 
-  fetch(window.location.href, {
-    method: 'POST',
-    body: formData,
-    headers: {
-      'X-Requested-With': 'XMLHttpRequest'  // This tells Django it's AJAX!
-    }
-  })
-    .then(response => {
-      if (!response.ok) throw new Error('Network error');
-      return response.json();
-    })
-    .then(data => {
-      if (data.errors) {
-        alert('Error: ' + JSON.stringify(data.errors));
-      } else {
-        // Add new row to the table
-        const table = document.getElementById('transactionTable');
-        const newRow = table.insertRow(table.rows.length - 1);
-        newRow.innerHTML = `
-            <td class="editable-category">${data.category}</td>
-            <td class="editable-amount">${data.amount}</td>
-            <td class="editable-date">${data.date}</td>
-            <td>
-                <button class="edit-btn" data-transaction-id="${data.id}">Edit</button>
-                <button class="delete-btn" data-transaction-id="${data.id}">Delete</button>
-            </td>
-        `;
+    // Chart management functions
+    const initializeChart = (chartData) => {
+        console.log("Initializing chart with data:", chartData);  // Debug log
+        if (myChart) {
+            console.log("Destroying existing chart instance", myChart);
+            myChart.destroy();
+        }
+        
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.map(item => item.category),
+                datasets: [{
+                    label: 'Amount Spent',
+                    data: chartData.map(item => item.total),
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.5)',
+                        'rgba(54, 162, 235, 0.5)',
+                        'rgba(255, 206, 86, 0.5)',
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    };
 
-        // const totalCell = document.querySelector('#transactionTable tr:last-child td:last-child');
+    // Initial chart setup from hidden JSON element
+    const initialData = JSON.parse(document.getElementById('chart-data').textContent);
+    initializeChart(initialData);
 
-        const totalCell = document.querySelector('#totalAmount');
-        totalCell.textContent = data.total;
-        this.reset();
-      }
-    })
-    .catch(error => console.error('Error:', error));
-});
+    // Form submission handler for new transactions
+    document.getElementById('transactionForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
 
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network error');
+            return response.json();
+        })
+        .then(data => {
+            console.log("New transaction data:", data); // Debug log
+            if (data.errors) {
+                alert('Error: ' + JSON.stringify(data.errors));
+                return;
+            }
 
-function handleDelete(e) {
-  const button = e.target;
-  const transactionId = button.getAttribute('data-transaction-id');
-  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            // Update transaction table with new row
+            const table = document.getElementById('transactionTable');
+            const newRow = table.insertRow(table.rows.length - 1);
+            newRow.innerHTML = `
+                <td class="editable-category">${data.category}</td>
+                <td class="editable-amount">${data.amount}</td>
+                <td class="editable-date">${data.date}</td>
+                <td>
+                    <button class="edit-btn" data-transaction-id="${data.id}">Edit</button>
+                    <button class="delete-btn" data-transaction-id="${data.id}">Delete</button>
+                </td>
+            `;
 
-  // Send DELETE request to the server
-  fetch(`/transactions/${transactionId}/delete/`, {
-    method: 'DELETE',
-    headers: {
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-CSRFToken': csrfToken  // Required for CSRF protection
-    }
-  })
-    .then(response => {
-      if (!response.ok) throw new Error('Delete failed');
-      return response.json();
-    })
-    .then(data => {
-      if (data.success) {
-        // Remove the deleted row from the table
-        button.closest('tr').remove();
-        // Update the total
-        document.getElementById('totalAmount').textContent = data.total;
-      }
-    })
-    .catch(error => {
-      alert('Failed to delete transaction: ' + error.message);
+            // Update total display and reset form
+            document.getElementById('totalAmount').textContent = data.total;
+            this.reset();
+
+            // Update chart with new data from response
+            if (data.category_totals) {
+                console.log("Updating chart with:", data.category_totals);  // Debug log
+                initializeChart(data.category_totals);
+            }
+        })
+        .catch(error => console.error('Error:', error));
     });
-}
 
-// Attach event listener to the table (for dynamically added buttons)
-document.getElementById('transactionTable').addEventListener('click', function(e) {
-  if (e.target.classList.contains('delete-btn')) {
-    handleDelete(e);
-  }
-});
+    // Delete handler
 
-
-
-function handleEdit(e) {
-  const button = e.target;
-  const transactionId = button.getAttribute('data-transaction-id');
-  const row = button.closest('tr');
-  const categoryCell = row.querySelector('.editable-category');
-  const amountCell = row.querySelector('.editable-amount');
-  const dateCell = row.querySelector('.editable-date'); // New
-
-  // Check if already in edit mode
-  if (button.textContent === 'Save') {
-    const categoryInput = categoryCell.querySelector('input');
-    const amountInput = amountCell.querySelector('input');
-    const dateInput = dateCell.querySelector('input'); // New
+// Delete handler
+function handleDelete(e) {
+    const button = e.target;
+    const transactionId = button.getAttribute('data-transaction-id');
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-    // Send AJAX request to save changes
-    fetch(`/transactions/${transactionId}/edit/`, {
-      method: 'PUT',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': csrfToken,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        category: categoryInput.value,
-        amount: amountInput.value,
-        date: dateInput.value || new Date().toISOString().split('T')[0], // Default to today
-      }),
-    })
-      .then(response => {
-        if (!response.ok) throw new Error('Edit failed');
-        return response.json();
-      })
-      .then(data => {
-        if (data.success) {
-          // Update the cells with new values
-          categoryCell.textContent = data.category;
-          amountCell.textContent = data.amount;
-          dateCell.textContent = data.date; // New
-          // Update the total
-          document.getElementById('totalAmount').textContent = data.total;
-          button.textContent = 'Edit'; // Revert button text
+    fetch(`/transactions/${transactionId}/delete/`, {
+        method: 'DELETE',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
         }
-      })
-      .catch(error => alert('Error: ' + error.message));
-  } else {
-    // Enter edit mode: Replace text with input fields
-    const currentCategory = categoryCell.textContent;
-    const currentAmount = amountCell.textContent;
-    const currentDate = dateCell.textContent;
-
-    categoryCell.innerHTML = `<input type="text" value="${currentCategory}">`;
-    amountCell.innerHTML = `<input type="number" value="${currentAmount}">`;
-    dateCell.innerHTML = `<input type="date" value="${dateCell.textContent}">`; // Date picker
-    button.textContent = 'Save'; // Change button to "Save"
-  }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Delete failed');
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Remove the deleted row and update total display
+            button.closest('tr').remove();
+            document.getElementById('totalAmount').textContent = data.total;
+            // Instead of using window.location.href, fetch from the index endpoint explicitly.
+            fetch('/transactions/index/?ajax=1&ts=' + new Date().getTime(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(updatedData => {
+                console.log("Fetched updated data after delete:", updatedData);  // Debug log
+                initializeChart(updatedData.category_totals);
+            });
+        }
+    })
+    .catch(error => alert('Delete error: ' + error.message));
 }
+    // Edit handler
+    function handleEdit(e) {
+        const button = e.target;
+        const transactionId = button.getAttribute('data-transaction-id');
+        const row = button.closest('tr');
+        const cells = {
+            category: row.querySelector('.editable-category'),
+            amount: row.querySelector('.editable-amount'),
+            date: row.querySelector('.editable-date')
+        };
 
-// Attach event listener for edit buttons
-document.getElementById('transactionTable').addEventListener('click', function(e) {
-  if (e.target.classList.contains('edit-btn')) {
-    handleEdit(e);
-  }
-});
+        if (button.textContent === 'Save') {
+            const inputs = {
+                category: cells.category.querySelector('input').value,
+                amount: cells.amount.querySelector('input').value,
+                date: cells.date.querySelector('input').value || new Date().toISOString().split('T')[0]
+            };
 
+            fetch(`/transactions/${transactionId}/edit/`, {
+                method: 'PUT',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(inputs)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Edit failed');
+                return response.json();
+            })
+            .then(data => {
+                console.log("Edit response data:", data);  // Debug log
+                if (data.success) {
+                    // Update row cells with new data
+                    cells.category.textContent = data.category;
+                    cells.amount.textContent = data.amount;
+                    cells.date.textContent = data.date;
+                    document.getElementById('totalAmount').textContent = data.total;
+                    button.textContent = 'Edit';
+                    // Update chart after edit if data provided
+                    if (data.category_totals) {
+                        console.log("Updating chart with:", data.category_totals);  // Debug log
+                        initializeChart(data.category_totals);
+                    }
+                }
+            })
+            .catch(error => alert('Edit error: ' + error.message));
+        } else {
+            // Turn cells into input fields for editing
+            Object.entries(cells).forEach(([key, cell]) => {
+                cell.innerHTML = `<input type="${key === 'date' ? 'date' : key === 'amount' ? 'number' : 'text'}" 
+                                       value="${cell.textContent}">`;
+            });
+            button.textContent = 'Save';
+        }
+    }
+
+    // Event delegation for dynamic buttons in the table
+    document.getElementById('transactionTable').addEventListener('click', function(e) {
+        if (e.target.classList.contains('delete-btn')) handleDelete(e);
+        if (e.target.classList.contains('edit-btn')) handleEdit(e);
+    });
 });

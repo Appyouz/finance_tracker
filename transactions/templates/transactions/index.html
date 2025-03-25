@@ -1,24 +1,56 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title></title>
-  <link href="css/style.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Transaction Overview</title>
+    <link rel="stylesheet" href="{% static 'transactions/style.css' %}">
+    <!-- Include Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
-  {% if latest_transaction_list%}
-  <ul>
-    {% for transaction in latest_transaction_list %}
-    <li><a href="{% url 'Transactions:list_transactions' transaction.id %}"> {{ transaction.category }}</a></li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p>No transactions are available.</p>
-  {% endif %}
+    <h1>Transactions & Spending Chart</h1>
 
+    <!-- Transaction List -->
+    <h2>Transaction List</h2>
+    <table id="transactionTable">
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transaction in transactions %}
+            <tr data-transaction-id="{{ transaction.id }}">
+                <td class="editable-category">{{ transaction.category }}</td>
+                <td class="editable-amount">{{ transaction.amount }}</td>
+                <td class="editable-date">{{ transaction.date|date:"Y-m-d" }}</td>
+                <td>
+                    <button class="edit-btn" data-transaction-id="{{ transaction.id }}">Edit</button>
+                    <button class="delete-btn" data-transaction-id="{{ transaction.id }}">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td><strong>Total</strong></td>
+                <td colspan="3"><strong id="totalAmount">{{ total }}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Chart Display -->
+    <h2>Spending by Category</h2>
+    <div class="chart-container">
+        <canvas id="categoryChart"></canvas>
+    </div>
+    <!-- Hidden element to store JSON chart data -->
+    {{ category_totals|json_script:"chart-data" }}
+    
+    <!-- Include our script -->
+    <script src="{% static 'transactions/script.js' %}"></script>
 </body>
-
 </html>

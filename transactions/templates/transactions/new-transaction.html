@@ -6,6 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>New Transaction</title>
         <link rel="stylesheet" href="{% static 'transactions/style.css' %}">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
     <body>
         <h1>New Transaction</h1>
@@ -45,6 +46,14 @@
                 </td>
             </tr>
         </table>
+        <!-- NEW: Add a canvas for the chart -->
+        <h2>Spending by Category</h2>
+        <div class="chart-container">
+            <canvas id="categoryChart"></canvas>
+        </div>
+        <!-- NEW: Hidden element for chart data -->
+        {# <script id="chart-data" type="application/json">{{ category_totals|safe }}</script> #}
+        {{ category_totals|json_script:"chart-data" }}  <!-- NEW: Safe JSON encoding -->
         {# <script src="{% static 'transactions/script.js' %}"></script> #}
         <script src="../../static/transactions/script.js"></script>
     </body>
