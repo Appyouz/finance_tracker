@@ -9,14 +9,8 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
     <body>
-        <h1>New Transaction</h1>
-        <form id= "transactionForm" action="" method="post">
-            {% csrf_token %}
-            <!-- renders form fiels as paragraphs -->
-            {{ form.as_p }}
-            <button type="submit">save</button>
-        </form>
-        <hr>
+        <h1>Transactions</h1>
+        {% csrf_token %}
         <h2>Recent Transactions</h2>
         <table id="transactionTable">
             <tr>
@@ -25,12 +19,17 @@
                 <th>Date</th>
                 <th>Actions</th>
             </tr>
+            <tr id="inlineNewTransaction">
+                <td><input type="text" id="newCategory"></td>
+                <td><input type="number" id="newAmount"></td>
+                <td><input type="date" id="newDate"></td>
+                <td><button id="saveNewTransaction">Save</button></td>
+            </tr>
             {% for transaction in transactions %}
                 <tr data-transaction-id="{{ transaction.id }}">
                     <td class="editable-category">{{ transaction.category }}</td>
                     <td class="editable-amount">{{ transaction.amount }}</td>
                     <td class="editable-date">{{ transaction.date|date:"Y-m-d" }}</td>
-                    <!-- Date cell -->
                     <td>
                         <button class="edit-btn" data-transaction-id="{{ transaction.id }}">Edit</button>
                         <button class="delete-btn" data-transaction-id="{{ transaction.id }}">Delete</button>
@@ -46,15 +45,10 @@
                 </td>
             </tr>
         </table>
-        <!-- NEW: Add a canvas for the chart -->
         <h2>Spending by Category</h2>
         <div class="chart-container">
             <canvas id="categoryChart"></canvas>
         </div>
-        <!-- NEW: Hidden element for chart data -->
-        {# <script id="chart-data" type="application/json">{{ category_totals|safe }}</script> #}
-        {{ category_totals|json_script:"chart-data" }}  <!-- NEW: Safe JSON encoding -->
-        {# <script src="{% static 'transactions/script.js' %}"></script> #}
-        <script src="../../static/transactions/script.js"></script>
+        {{ category_totals|json_script:"chart-data" }}  <script src="../../static/transactions/script.js"></script>
     </body>
 </html>
